@@ -196,6 +196,19 @@ public class HealthService {
 		m.put("total_minutes", totalMinutes);
 		m.put("dominant_activity", dominant);
 		m.put("breakdown", breakdown);
+		// Prefer the on-device counter for the step number when the device
+		// sends one; keep ML activity types/active minutes unchanged.
+		Long deviceSteps = jdbc.queryForObject("""
+				SELECT MAX(steps_total) FROM sensor_readings
+				WHERE user_id = ? AND recorded_at >= ? AND recorded_at < ?
+				  AND steps_total IS NOT NULL""", Long.class,
+				userId, asTs(from), asTs(to));
+		if (deviceSteps != null) {
+			m.put("steps", deviceSteps);
+			m.put("steps_source", "device");
+		} else {
+			m.put("steps_source", "estimated");
+		}
 		return m;
 	}
 
