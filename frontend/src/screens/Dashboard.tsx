@@ -123,12 +123,18 @@ export default function Dashboard() {
   const score = num(wellness?.wellness_score);
   const scoreLow = num(wellness?.score_low);
   const scoreHigh = num(wellness?.score_high);
-  const stepsDisplay =
+  // base + live for responsiveness, with the persisted daily total as a
+  // monotonic floor: ML reclassification of the same 5-min window must not
+  // make the displayed count jump backwards.
+  const stepsLive =
     stepsInfo && typeof stepsInfo.base_steps === "number" && typeof stepsInfo.live_steps === "number"
       ? stepsInfo.base_steps + stepsInfo.live_steps
-      : stepsInfo && typeof stepsInfo.steps === "number"
-        ? stepsInfo.steps
-        : null;
+      : null;
+  const stepsStored = stepsInfo && typeof stepsInfo.steps === "number" ? stepsInfo.steps : null;
+  const stepsDisplay =
+    stepsStored !== null
+      ? Math.max(stepsLive ?? 0, stepsStored)
+      : stepsLive;
   const stepsMoving = stepsInfo?.moving === true;
   const liveLatest = live.data?.latest ?? null;
   const latestAge = liveLatest?.recordedAt
