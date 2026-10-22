@@ -346,6 +346,14 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
   .sleep-history-row { grid-template-columns: 1fr 1fr; }
 }
 
+/* settings */
+.settings-form { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.settings-form input {
+  flex: 1; min-width: 220px; background: var(--ink-deep); border: 1px solid var(--hairline);
+  color: #fff; padding: 11px 12px; border-radius: var(--radius-md); font-size: 14px; outline: none;
+}
+.settings-form input:focus { border-color: var(--lime); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .001ms !important;
