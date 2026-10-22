@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -62,6 +63,25 @@ public class HealthService {
 		this.assessmentRepository = assessmentRepository;
 	}
 
+	/** User-local calendar zone (falls back to UTC for missing/invalid values). */
+	private ZoneId zoneFor(UUID userId) {
+		return userRepository.findById(userId)
+				.map(User::getTimezone)
+				.filter(tz -> tz != null && !tz.isBlank())
+				.map(tz -> {
+					try {
+						return ZoneId.of(tz);
+					} catch (Exception e) {
+						return ZoneOffset.UTC;
+					}
+				})
+				.orElse(ZoneOffset.UTC);
+	}
+
+	private LocalDate dateFor(UUID userId, LocalDate date) {
+		return date != null ? date : LocalDate.now(zoneFor(userId));
+	}
+
 	// ---------------------------------------------------------------- profile
 
 	public Map<String, Object> profile(UUID userId) {
@@ -83,7 +103,7 @@ public class HealthService {
 	// ------------------------------------------------------------- today
 
 	public Map<String, Object> today(UUID userId) {
-		LocalDate date = LocalDate.now(ZoneOffset.UTC);
+		LocalDate date = LocalDate.now(zoneFor(userId));
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("date", date);
 		payload.put("sleep", sleepForDay(userId, date));
@@ -96,9 +116,11 @@ public class HealthService {
 	// ---------------------------------------------------- per-metric for a date
 
 	public Map<String, Object> sleepForDay(UUID userId, LocalDate date) {
-		// sleep crosses midnight: look at previous evening → this morning
-		Instant from = date.minusDays(1).atTime(20, 0).toInstant(ZoneOffset.UTC);
-		Instant to = date.atTime(12, 0).toInstant(ZoneOffset.UTC);
+		ZoneId zone = zoneFor(userId);
+		date = dateFor(userId, date);
+		// sleep crosses midnight: look at previous evening  this morning
+		Instant from = date.minusDays(1).atTime(20, 0).atZone(zone).toInstant();
+		Instant to = date.atTime(12, 0).atZone(zone).toInstant();
 		List<SleepRecord> records = sleepRepository.findForRange(userId, from, to);
 		if (records.isEmpty()) {
 			return Map.of("sleep", "no data");
@@ -113,8 +135,10 @@ public class HealthService {
 	}
 
 	public Map<String, Object> heartRateStats(UUID userId, LocalDate date) {
-		Instant from = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-		Instant to = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+		ZoneId zone = zoneFor(userId);
+		date = dateFor(userId, date);
+		Instant from = date.atStartOfDay(zone).toInstant();
+		Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
 		List<Map<String, Object>> rows = jdbc.queryForList("""
 				SELECT AVG(CASE WHEN heart_rate_avg BETWEEN 30 AND 220 THEN heart_rate_avg END) AS avg_hr,
 				       MIN(CASE WHEN heart_rate_min >= 30 THEN heart_rate_min END) AS min_hr,
@@ -138,8 +162,10 @@ public class HealthService {
 	}
 
 	public Map<String, Object> activityStats(UUID userId, LocalDate date) {
-		Instant from = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-		Instant to = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+		ZoneId zone = zoneFor(userId);
+		date = dateFor(userId, date);
+		Instant from = date.atStartOfDay(zone).toInstant();
+		Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
 		List<ActivityRecord> records = activityRepository.findForRange(userId, from, to);
 		if (records.isEmpty()) {
 			return Map.of("activity", "no data");
@@ -183,9 +209,10 @@ public class HealthService {
 	 * don't inflate the count. Rough by design — the device samples ~0.7 Hz.
 	 */
 	public Map<String, Object> estimatedStepsToday(UUID userId) {
-		LocalDate date = LocalDate.now(ZoneOffset.UTC);
-		Instant dayStart = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-		Instant dayEnd = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+		ZoneId zone = zoneFor(userId);
+		LocalDate date = LocalDate.now(zone);
+		Instant dayStart = date.atStartOfDay(zone).toInstant();
+		Instant dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant();
 
 		long base = 0;
 		Instant lastClassifiedEnd = null;
@@ -294,8 +321,10 @@ public class HealthService {
 	}
 
 	public Map<String, Object> temperatureStats(UUID userId, LocalDate date) {
-		Instant from = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-		Instant to = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+		ZoneId zone = zoneFor(userId);
+		date = dateFor(userId, date);
+		Instant from = date.atStartOfDay(zone).toInstant();
+		Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
 		List<TemperatureRecord> records = temperatureRepository.findForRange(userId, from, to);
 		if (records.isEmpty()) {
 			// fall back to hourly aggregates if no temperature_records
@@ -356,6 +385,7 @@ public class HealthService {
 	}
 
 	public Map<String, Object> compareToBaseline(UUID userId, LocalDate date) {
+		date = dateFor(userId, date);
 		HealthBaseline b = baselineRepository.findCurrentByUser(userId).orElse(null);
 		Map<String, Object> today = today(userId);
 		Map<String, Object> baseline = baseline(userId);
@@ -384,19 +414,23 @@ public class HealthService {
 	// -------------------------------------------------------------- wellness
 
 	public Map<String, Object> wellness(UUID userId, LocalDate date) {
+		date = dateFor(userId, date);
 		// Prefer an existing assessment; else compute a weighted z-score signal.
 		List<HealthAssessment> assessments = assessmentRepository.findByUserIdAndAssessmentDate(userId, date);
 		if (!assessments.isEmpty()) {
 			HealthAssessment a = assessments.get(0);
-			return Map.of(
-					"date", date,
-					"wellness_score", a.getWellnessScore(),
-					"stress_level", a.getStressLevel(),
-					"confidence", a.getConfidence());
+			BigDecimal confidence = a.getConfidence();
+			boolean provisional = confidence == null || confidence.doubleValue() < 0.6;
+			return wellnessPayload(date, a.getWellnessScore(), a.getStressLevel(),
+					confidence, provisional, provisional ? 5 : 0);
 		}
 		HealthBaseline b = baselineRepository.findCurrentByUser(userId).orElse(null);
 		if (b == null) {
-			return Map.of("wellness", "no data", "date", date);
+			Map<String, Object> none = new LinkedHashMap<>();
+			none.put("date", date);
+			none.put("wellness", "no data");
+			none.put("provisional", false);
+			return none;
 		}
 
 		Map<String, Object> now = today(userId);
@@ -429,17 +463,39 @@ public class HealthService {
 				anomalies.add(a);
 			}
 		}
-		double meanAbs = weightSum > 0 ? weighted / weightSum : Double.NaN;
-		int wellnessScore = Double.isNaN(meanAbs) ? 50
-				: (int) Math.round(Math.max(0, Math.min(100, 100 - meanAbs * 12)));
+		// A baseline without any usable today metric is not an estimate; wait for data.
+		if (weightSum == 0) {
+			Map<String, Object> none = new LinkedHashMap<>();
+			none.put("date", date);
+			none.put("wellness", "no data");
+			none.put("reason", "collecting");
+			none.put("provisional", false);
+			return none;
+		}
+		double meanAbs = weighted / weightSum;
+		int wellnessScore = (int) Math.round(Math.max(0, Math.min(100, 100 - meanAbs * 12)));
 		String stress = wellnessScore >= 75 ? "low" : wellnessScore >= 50 ? "moderate" : "elevated";
 
+		// This on-the-fly score is always an early estimate: no stored, validated
+		// assessment exists yet. Surface a range and mark it provisional.
+		return wellnessPayload(date, BigDecimal.valueOf(wellnessScore), stress,
+				BigDecimal.valueOf(0.45), true, 5);
+	}
+
+	private Map<String, Object> wellnessPayload(LocalDate date, BigDecimal score, String stress,
+			BigDecimal confidence, boolean provisional, int margin) {
 		Map<String, Object> m = new LinkedHashMap<>();
 		m.put("date", date);
-		m.put("wellness_score", wellnessScore);
+		m.put("wellness_score", score);
 		m.put("stress_level", stress);
-		m.put("confidence", 0.72);
-		m.put("anomalies", anomalies);
+		m.put("confidence", confidence);
+		m.put("provisional", provisional);
+		m.put("early_estimate", provisional);
+		if (score != null) {
+			int mid = score.setScale(0, RoundingMode.HALF_UP).intValue();
+			m.put("score_low", Math.max(0, mid - margin));
+			m.put("score_high", Math.min(100, mid + margin));
+		}
 		return m;
 	}
 
@@ -449,10 +505,12 @@ public class HealthService {
 		Map<String, Object> result = new LinkedHashMap<>();
 		result.put("metric", metric);
 		result.put("days", days);
+		ZoneId zone = zoneFor(userId);
+		LocalDate today = LocalDate.now(zone);
 		List<Map<String, String>> values = new ArrayList<>();
 		for (int i = days - 1; i >= 0; i--) {
-			LocalDate d = LocalDate.now(ZoneOffset.UTC).minusDays(i);
-			Double v = metricValueForDay(userId, metric, d);
+			LocalDate d = today.minusDays(i);
+			Double v = metricValueForDay(userId, metric, d, zone);
 			Map<String, String> row = new LinkedHashMap<>();
 			row.put("date", d.toString());
 			row.put("value", v == null ? "null" : String.format("%.2f", v));
@@ -463,12 +521,12 @@ public class HealthService {
 		return result;
 	}
 
-	private Double metricValueForDay(UUID userId, String metric, LocalDate date) {
-		Instant from = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-		Instant to = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+	private Double metricValueForDay(UUID userId, String metric, LocalDate date, ZoneId zone) {
+		Instant from = date.atStartOfDay(zone).toInstant();
+		Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
 		switch (metric) {
 			case "sleep" -> {
-				Instant pFrom = date.minusDays(1).atTime(20, 0).toInstant(ZoneOffset.UTC);
+				Instant pFrom = date.minusDays(1).atTime(20, 0).atZone(zone).toInstant();
 				List<SleepRecord> recs = sleepRepository.findForRange(userId, pFrom, to);
 				return recs.isEmpty() ? null : recs.get(0).getDurationMinutes() / 60.0;
 			}
