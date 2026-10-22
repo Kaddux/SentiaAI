@@ -136,6 +136,85 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 .mic-select:focus { border-color: var(--lime); outline: none; }
 @keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(194, 239, 78, .45); } 50% { box-shadow: 0 0 0 10px rgba(194, 239, 78, 0); } }
 
+/* chat pass — streaming caret, mic waveform, spoken equalizer, answer visuals */
+.chat { max-height: 64vh; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+.msg.assistant { display: flex; flex-direction: column; min-width: 0; }
+.stream-text { white-space: pre-wrap; }
+.caret {
+  display: inline-block; width: 2px; height: 1em; margin-left: 2px; background: var(--lime);
+  vertical-align: -2px; animation: caret-blink 1s steps(2) infinite;
+}
+@keyframes caret-blink { 50% { opacity: 0; } }
+
+.voice-wave, .eq { display: inline-flex; align-items: center; gap: 3px; height: 22px; }
+.voice-wave i, .eq i {
+  display: block; width: 3px; height: 30%; border-radius: 9999px; background: var(--lime);
+  transform-origin: center; animation: wave-bar 1s ease-in-out infinite;
+}
+.voice-wave i:nth-child(2n), .eq i:nth-child(2n) { height: 70%; }
+.voice-wave i:nth-child(3n), .eq i:nth-child(3n) { height: 100%; }
+@keyframes wave-bar { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+.speaking-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  font-size: 12px; letter-spacing: .2px; text-transform: uppercase; color: var(--lime);
+}
+
+.mic-btn, .icon-btn { position: relative; }
+.mic-btn.listening::after {
+  content: ""; position: absolute; inset: -6px; border-radius: 50%;
+  border: 2px solid rgba(194, 239, 78, .55); animation: mic-ring 1.4s ease-out infinite;
+}
+@keyframes mic-ring { 0% { transform: scale(.8); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
+
+.insight-card {
+  margin-top: 12px; padding: 12px; border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg); background: var(--surface-2);
+  animation: insight-rise .5s var(--ease) both;
+}
+@keyframes insight-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.insight-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #b9b0d6; }
+.insight-value {
+  font-family: var(--font-display); font-size: 26px; font-weight: 600;
+  line-height: 1.15; margin-top: 2px; font-variant-numeric: tabular-nums;
+}
+.insight-value small {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 400; color: #b9b0d6; margin-left: 5px;
+}
+.insight-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 2px; flex-wrap: wrap; }
+.insight-note { font-size: 12px; color: var(--on-dark-muted); margin-top: 6px; }
+.insight-spark { flex: 0 0 96px; max-width: 46%; }
+.insight-spark .spark-wrap { height: 34px; margin-top: 0; }
+.insight-bars { display: flex; align-items: flex-end; gap: 4px; height: 44px; margin-top: 10px; }
+.insight-bars span {
+  flex: 1; border-radius: 3px 3px 0 0; transform-origin: bottom;
+  background: linear-gradient(180deg, var(--lime), rgba(194, 239, 78, .25));
+  animation: bar-grow .6s var(--ease) both; animation-delay: calc(var(--i, 0) * 40ms);
+}
+.insight-bars span.empty { background: var(--hairline); }
+@keyframes bar-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.insight-gauge {
+  position: relative; height: 8px; border-radius: 9999px; margin-top: 14px;
+  background: linear-gradient(90deg, var(--violet), var(--surface-2) 55%, var(--lime));
+}
+.insight-gauge-marker {
+  position: absolute; top: -4px; width: 12px; height: 16px; border-radius: 4px;
+  background: #fff; border: 2px solid var(--night); transform: translateX(-50%);
+  transition: left 1s var(--ease);
+}
+.insight-scale {
+  position: relative; height: 6px; border-radius: 9999px; margin-top: 16px;
+  background: linear-gradient(90deg, var(--violet), var(--lime) 50%, var(--pink)); opacity: .85;
+}
+.insight-scale-marker {
+  position: absolute; top: -5px; width: 14px; height: 16px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--night); transform: translateX(-50%);
+  transition: left 1s var(--ease);
+}
+.insight-scale-labels {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-family: var(--font-mono); font-size: 10px; color: #b9b0d6;
+}
+
 /* reminders */
 .rem { display: flex; align-items: center; gap: 14px; }
 .rem .time { font-family: var(--font-mono); font-size: 15px; min-width: 56px; }
