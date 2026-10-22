@@ -40,7 +40,7 @@ export default function Dashboard() {
   const [tSteps, setTSteps] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [liveSteps, setLiveSteps] = useState<number | null>(null);
+  const [stepsInfo, setStepsInfo] = useState<any>(null);
   const [sleep, setSleep] = useState<any>(null);
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [sleepModalMode, setSleepModalMode] = useState<"past" | "detail">("detail");
@@ -79,22 +79,28 @@ export default function Dashboard() {
     })();
   }, []);
 
-  // Poll the estimated step count every 5 s so the card updates while walking.
+  // Poll the estimated step count every 2 s while the tab is visible.
   useEffect(() => {
     let alive = true;
     const tick = async () => {
+      if (document.hidden) return;
       try {
         const s = await api.steps();
-        if (alive) setLiveSteps(typeof s?.steps === "number" ? s.steps : null);
+        if (alive) setStepsInfo(s);
       } catch {
         /* keep the previous value */
       }
     };
     tick();
-    const id = window.setInterval(tick, 5000);
+    const id = window.setInterval(tick, 2000);
+    const onVisible = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
       window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -117,11 +123,24 @@ export default function Dashboard() {
   const score = num(wellness?.wellness_score);
   const scoreLow = num(wellness?.score_low);
   const scoreHigh = num(wellness?.score_high);
+  const stepsDisplay =
+    stepsInfo && typeof stepsInfo.base_steps === "number" && typeof stepsInfo.live_steps === "number"
+      ? stepsInfo.base_steps + stepsInfo.live_steps
+      : stepsInfo && typeof stepsInfo.steps === "number"
+        ? stepsInfo.steps
+        : null;
+  const stepsMoving = stepsInfo?.moving === true;
+  const liveLatest = live.data?.latest ?? null;
+  const latestAge = liveLatest?.recordedAt
+    ? (Date.now() - new Date(liveLatest.recordedAt).getTime()) / 1000
+    : null;
+  const sensorsLive = latestAge !== null && latestAge >= 0 && latestAge <= 20;
+  const showStepsMoving = stepsMoving && sensorsLive;
 
   const metrics = [
     { label: "Resting HR", value: num(hr.resting), digits: 0, suffix: " bpm", spark: hrSeries, delta: hrDelta, unit: " bpm" },
     { label: "Avg HR", value: num(hr.average), digits: 0, suffix: " bpm", spark: hrSeries, delta: null, unit: " bpm" },
-    { label: "Steps", value: liveSteps ?? num(act.steps), digits: 0, suffix: "", spark: stepSeries, delta: stepDelta, unit: "" },
+    { label: "Steps", value: stepsDisplay ?? num(act.steps), digits: 0, suffix: "", spark: stepSeries, delta: stepDelta, unit: "" },
     { label: "Active min", value: num(act.active_minutes), digits: 0, suffix: " min", spark: stepSeries, delta: null, unit: " min" },
     { label: "Temp", value: num(temp.average), digits: 1, suffix: " °C", spark: [], delta: null, unit: " °C" },
   ];
@@ -135,7 +154,8 @@ export default function Dashboard() {
       <LiveNow
         latest={live.data?.latest ?? null}
         readings={live.data?.readings ?? []}
-        steps={liveSteps}
+        steps={stepsDisplay}
+        stepsMoving={showStepsMoving}
       />
       {live.error && !live.data && (
         <div className="muted" style={{ marginBottom: 12 }}>
@@ -170,6 +190,12 @@ export default function Dashboard() {
                 <div className="value">
                   <CountUp value={m.value} digits={m.digits} suffix={m.suffix} />
                 </div>
+                {m.label === "Steps" && showStepsMoving && (
+                  <span className="steps-moving">
+                    <span className="move-dot" />
+                    moving
+                  </span>
+                )}
                 {m.delta !== null && (
                   <span className={`chip ${m.delta >= 0 ? "up" : "down"}`}>
                     {m.delta >= 0 ? "↑" : "↓"} {Math.abs(m.delta).toFixed(0)}

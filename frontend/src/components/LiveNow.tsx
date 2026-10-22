@@ -25,10 +25,12 @@ export default function LiveNow({
   latest,
   readings,
   steps,
+  stepsMoving = false,
 }: {
   latest: any;
   readings: any[];
   steps: number | null;
+  stepsMoving?: boolean;
 }) {
   const age = ageSeconds(latest?.recordedAt ?? null);
   const status = !latest ? "waiting" : age !== null && age <= 20 ? "live" : "stale";
@@ -77,7 +79,10 @@ export default function LiveNow({
             </div>
             <div>
               <div className="label">Steps today</div>
-              <div className="live-now-value"><FlashValue value={steps} /></div>
+              <div className="live-now-value">
+                <FlashValue value={steps} />
+                {stepsMoving && <span className="move-dot" title="Moving" />}
+              </div>
             </div>
           </div>
           <HrTrace values={values} live={liveHr} />
@@ -85,10 +90,10 @@ export default function LiveNow({
             {status !== "live"
               ? "No signal — the latest reading is older than 20 seconds."
               : fingerOff
-                ? "Finger not detected — HR is not being measured."
+                ? "Finger not detected — HR is not being measured. Steps still update live."
                 : bpm === null
-                  ? "No live HR in the latest reading."
-                  : "Live HR from raw samples; daily cards update after each 5-min window."}
+                  ? "No live HR in the latest reading. Steps still update live."
+                  : "Live HR and steps update every 2 s; daily cards update after each 5-min window."}
           </div>
         </>
       )}

@@ -8,7 +8,7 @@ import type { Plugin } from "vite";
 const BACKEND = (process.env.SENTIA_BACKEND || "http://localhost:8080").replace(/\/+$/, "");
 const UDP_PORT = Number(process.env.SENTIA_UDP_PORT || 4210);
 const BATCH_SIZE = Math.max(1, Number(process.env.SENTIA_BATCH_SIZE || 20));
-const BATCH_SECS = Math.max(1, Number(process.env.SENTIA_BATCH_SECS || 5));
+const BATCH_SECS = Math.max(1, Number(process.env.SENTIA_BATCH_SECS || 2));
 const TELEMETRY = process.env.SENTIA_BRIDGE_TELEMETRY !== "0";
 const DRY_RUN = process.env.SENTIA_BRIDGE_DRY_RUN === "1";
 const MAX_BUFFER = 500;

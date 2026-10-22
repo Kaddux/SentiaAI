@@ -376,6 +376,17 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
   font-family: var(--font-display); font-size: 20px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+.steps-moving {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--lime);
+}
+.move-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--lime); vertical-align: middle;
+  animation: pulse-ok 1.8s ease-in-out infinite;
+}
+.live-now-value .move-dot { margin-left: 6px; }
 .live-now-card .hr-trace { height: 44px; margin-top: 10px; }
 .live-now-empty {
   margin-top: 12px; padding: 16px; text-align: center; font-size: 14px;
