@@ -206,6 +206,12 @@ void updateSteps() {
   gravityEst += (mag - gravityEst) * STEP_GRAVITY_ALPHA;   // ~0.25 s time constant
   float lin = mag - gravityEst;
 
+  // Let the gravity estimate settle after boot before counting.
+  if (millis() < 2000) {
+    prevLin = lin;
+    return;
+  }
+
   // Count the falling edge of a positive acceleration peak. The refractory
   // period (280 ms) prevents double-counting one footfall and caps cadence.
   if (prevLin > STEP_PEAK_G && lin <= prevLin &&
