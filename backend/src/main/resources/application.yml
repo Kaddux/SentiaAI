@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: SentiaAI
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/health_assistant}
+    username: ${SPRING_DATASOURCE_USERNAME:health_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:health_pass}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+jwt:
+  secret: ${JWT_SECRET:}
+
+ai-service:
+  url: ${AI_SERVICE_URL:http://localhost:8000}
+
+ml-service:
+  url: ${ML_SERVICE_URL:http://localhost:8001}
+
+app:
+  retention:
+    raw-days: ${RETENTION_RAW_DAYS:7}          # drop raw sensor_readings partitions older than this
+    five-min-days: ${RETENTION_FIVE_MIN_DAYS:90} # delete 5-min aggregates older than this
+  analytics:
+    # Tuned for a ~1h-battery demo device: build the baseline from the recent
+    # session, refresh quickly, and keep z-scores finite.
+    lookback-hours: ${ANALYTICS_LOOKBACK_HOURS:24}
+    min-buckets: ${ANALYTICS_MIN_BUCKETS:2}
+    std-floor-pct: ${ANALYTICS_STD_FLOOR_PCT:0.15}
+    aggregate-interval-ms: ${ANALYTICS_AGGREGATE_INTERVAL_MS:300000}
+    baseline-interval-ms: ${ANALYTICS_BASELINE_INTERVAL_MS:300000}
+  reminders:
+    # reminder_time (HH:MM) is interpreted in this zone.
+    zone: ${REMINDERS_TZ:Asia/Kolkata}
+    scan-interval-ms: ${REMINDERS_SCAN_MS:5000}
+  sleep:
+    # Manual sleep logging (device battery cannot record overnight).
+    nap-max-minutes: ${SLEEP_NAP_MAX_MINUTES:180}
+    nap-start-hour: ${SLEEP_NAP_START_HOUR:10}
+    nap-end-hour: ${SLEEP_NAP_END_HOUR:18}
+    max-session-minutes: ${SLEEP_MAX_SESSION_MINUTES:960}
+    stale-open-hours: ${SLEEP_STALE_OPEN_HOURS:14}
+
+server:
+  port: 8080
