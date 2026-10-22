@@ -3,6 +3,8 @@ import { api } from "../api";
 import Sparkline from "../components/Sparkline";
 import CountUp from "../components/CountUp";
 import SleepLogCard from "../components/SleepLogCard";
+import SleepTile from "../components/SleepTile";
+import SleepDetailModal from "../components/SleepDetailModal";
 
 function num(v: any): number | null {
   return typeof v === "number" && !Number.isNaN(v) ? v : null;
@@ -27,17 +29,22 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [liveSteps, setLiveSteps] = useState<number | null>(null);
+  const [sleep, setSleep] = useState<any>(null);
+  const [sleepModalOpen, setSleepModalOpen] = useState(false);
+  const [sleepModalMode, setSleepModalMode] = useState<"past" | "detail">("detail");
 
   useEffect(() => {
     (async () => {
       try {
-        const [td, wl, hr, st] = await Promise.all([
+        const [td, wl, hr, st, sl] = await Promise.all([
           api.today(), api.wellness(), api.trends("heart_rate", 7), api.trends("steps", 7),
+          api.sleepSummary(7),
         ]);
         setToday(td);
         setWellness(wl);
         setTHr(hr);
         setTSteps(st);
+        setSleep(sl);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -64,6 +71,14 @@ export default function Dashboard() {
       window.clearInterval(id);
     };
   }, []);
+
+  async function refreshSleep() {
+    try {
+      setSleep(await api.sleepSummary(7));
+    } catch {
+      /* keep the previous summary */
+    }
+  }
 
   if (loading)
     return (
@@ -112,6 +127,13 @@ export default function Dashboard() {
             <Sparkline values={m.spark} lime={m.label === "Steps"} />
           </div>
         ))}
+        <SleepTile
+          summary={sleep}
+          onOpen={() => {
+            setSleepModalMode("detail");
+            setSleepModalOpen(true);
+          }}
+        />
       </div>
 
       <div className="grid cols-3" style={{ marginTop: 16 }}>
@@ -138,7 +160,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <SleepLogCard onOpenDetail={() => {}} />
+      <SleepLogCard
+        onOpenDetail={(mode) => {
+          setSleepModalMode(mode === "past" ? "past" : "detail");
+          setSleepModalOpen(true);
+        }}
+      />
+      <SleepDetailModal
+        open={sleepModalOpen}
+        mode={sleepModalMode}
+        onClose={() => setSleepModalOpen(false)}
+        onChanged={refreshSleep}
+      />
     </>
   );
 }

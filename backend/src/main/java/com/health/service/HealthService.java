@@ -560,11 +560,12 @@ public class HealthService {
 		return null;
 	}
 
-	private double zScore(double value, Number mean, Number std) {
-		if (Double.isNaN(value) || mean == null || std == null || std.doubleValue() == 0) {
+	private double zScore(Number value, Number mean, Number std) {
+		if (value == null || Double.isNaN(value.doubleValue()) || mean == null || std == null
+				|| std.doubleValue() == 0) {
 			return Double.NaN;
 		}
-		return (value - mean.doubleValue()) / std.doubleValue();
+		return (value.doubleValue() - mean.doubleValue()) / std.doubleValue();
 	}
 
 	private Double diff(BigDecimal today, BigDecimal baseline) {

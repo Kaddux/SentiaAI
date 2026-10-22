@@ -297,6 +297,55 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 }
 .rating-pill:hover, .rating-pill.on { background: var(--lime); color: var(--ink-deep); border-color: var(--lime); }
 
+/* sleep tile */
+.sleep-tile { text-align: left; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; }
+.sleep-tile:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.sleep-tile .pill { align-self: flex-start; }
+.sleep-empty { font-size: 14px; color: var(--on-dark-muted); margin-top: 8px; }
+
+/* sleep detail modal */
+.sleep-modal-backdrop {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center;
+  padding: 24px; background: rgba(10, 6, 20, 0.72);
+}
+.sleep-modal {
+  width: min(1040px, 100%); max-height: 88vh; overflow: auto;
+  background: var(--night); border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-xl); padding: 24px 26px;
+  box-shadow: 0 30px 100px -40px rgba(0, 0, 0, 0.9);
+}
+.sleep-modal-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sleep-chart { display: flex; align-items: flex-end; gap: 8px; height: 210px; margin-top: 20px; }
+.sleep-bar-wrap {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: transparent; border: 0; padding: 0; color: inherit; cursor: pointer;
+}
+.sleep-bar-track { width: 100%; height: 168px; display: flex; align-items: flex-end; }
+.sleep-bar {
+  width: 100%; min-height: 2px; border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, var(--lime), rgba(194, 239, 78, 0.35));
+  transition: height 0.6s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.2s ease;
+}
+.sleep-bar-wrap.selected .sleep-bar { background: var(--pink); }
+.sleep-bar-label { font-size: 10px; color: var(--on-dark-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.sleep-selected { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 14px; }
+.sleep-form {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; align-items: end; margin-top: 18px;
+}
+.sleep-form .field { margin: 0; }
+.sleep-form .btn { height: 42px; }
+.sleep-history { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+.sleep-history-row {
+  display: grid; grid-template-columns: 1.2fr 0.6fr 0.7fr 1.5fr auto auto;
+  align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .sleep-history-row { grid-template-columns: 1fr 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .001ms !important;
