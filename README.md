@@ -122,6 +122,9 @@ No Python install is needed.
 - If no packets arrive, allow **Node.js** through Windows Defender Firewall for
   private networks (inbound UDP `4210`). Signing out stops ingestion; closing the
   tab without signing out leaves it running until the dev server stops.
+- UDP is unauthenticated, so run this only on a trusted network. The firewall
+  allowance is scoped to UDP `4210`; the bridge caps datagrams at 4 KB and drops
+  traffic above `SENTIA_MAX_PPS` (default 50/s).
 - Knobs: `SENTIA_UDP_PORT`, `SENTIA_BATCH_SIZE` (default 20),
   `SENTIA_BATCH_SECS` (default 5), `SENTIA_BRIDGE_DRY_RUN=1` (parse/log, no POST),
   `SENTIA_BRIDGE_TELEMETRY=0` (quiet console).

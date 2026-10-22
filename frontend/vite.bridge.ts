@@ -12,6 +12,8 @@ const BATCH_SECS = Math.max(1, Number(process.env.SENTIA_BATCH_SECS || 5));
 const TELEMETRY = process.env.SENTIA_BRIDGE_TELEMETRY !== "0";
 const DRY_RUN = process.env.SENTIA_BRIDGE_DRY_RUN === "1";
 const MAX_BUFFER = 500;
+const MAX_PACKET_BYTES = 4096;
+const MAX_PACKETS_PER_SEC = Math.max(1, Number(process.env.SENTIA_MAX_PPS || 50));
 const CONTROL_PATH = "/__sentia/bridge";
 
 type BridgeState = "idle" | "starting" | "running" | "stopping" | "error";
@@ -43,6 +45,9 @@ let packets = 0;
 let posted = 0;
 let batches = 0;
 let malformed = 0;
+let dropped = 0;
+let rateWindow = Date.now();
+let rateCount = 0;
 let lastError: string | null = null;
 let startedAt: string | null = null;
 let startPromise: Promise<any> | null = null;
@@ -147,6 +152,8 @@ function status() {
     posted,
     batches,
     malformed,
+    dropped,
+    maxPps: MAX_PACKETS_PER_SEC,
     lastError,
     tokenSet: !!token,
     startedAt,
@@ -218,6 +225,23 @@ async function flush() {
 }
 
 function handlePacket(msg: any) {
+  if (msg.length > MAX_PACKET_BYTES) {
+    dropped += 1;
+    return;
+  }
+  const now = Date.now();
+  if (now - rateWindow >= 1000) {
+    rateWindow = now;
+    rateCount = 0;
+  }
+  rateCount += 1;
+  if (rateCount > MAX_PACKETS_PER_SEC) {
+    dropped += 1;
+    if (rateCount === MAX_PACKETS_PER_SEC + 1) {
+      logLine(`rate limit ${MAX_PACKETS_PER_SEC}/s - dropping extra packets`);
+    }
+    return;
+  }
   const line = String(msg).trim();
   if (!line) return;
   const reading = parsePacket(line);
@@ -245,6 +269,8 @@ async function start(t: string): Promise<any> {
   startedAt = null;
   buffer = [];
   lastPost = Date.now();
+  rateWindow = Date.now();
+  rateCount = 0;
 
   startPromise = new Promise((resolve, reject) => {
     const sock = dgram.createSocket("udp4");
