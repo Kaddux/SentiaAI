@@ -25,11 +25,10 @@ export default function SleepTile({
     hasLastNight && previous && typeof last.totalSleepMin === "number"
       ? last.totalSleepMin - previous.totalSleepMin
       : null;
-  const trendClass = diff === null ? "ok" : diff <= -90 ? "alert" : diff < 0 ? "watch" : "ok";
 
   return (
     <div
-      className="card lift anim-up sleep-tile"
+      className="card lift glance-rise sleep-tile"
       role="button"
       tabIndex={0}
       onClick={onOpen}
@@ -39,7 +38,7 @@ export default function SleepTile({
           onOpen();
         }
       }}
-      style={{ animationDelay: "300ms" }}
+      style={{ ["--i" as any]: 5 }}
     >
       <div className="label">
         Sleep <span className="sleep-source">logged by you</span>
@@ -50,12 +49,12 @@ export default function SleepTile({
             <CountUp value={last.totalSleepMin / 60} digits={1} suffix=" h" />
           </div>
           {diff !== null && (
-            <span className={`pill ${trendClass}`}>
+            <span className={`chip ${diff >= 0 ? "up" : "down"}`}>
               {diff >= 0 ? "+" : ""}
               {Math.round(diff)} min vs previous
             </span>
           )}
-          <Sparkline values={series} lime />
+          <Sparkline values={series} lime delay={0.35} />
           <div className="meta">{fmtDur(last.totalSleepMin)} · tap for 14-day detail</div>
         </>
       ) : (

@@ -228,6 +228,51 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 .card.lift { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .card.lift:hover { transform: translateY(-3px); border-color: rgba(194, 239, 78, .25); box-shadow: 0 12px 32px -14px rgba(0, 0, 0, .6); }
 
+/* dashboard pass — staggered rise, trend chips, spark dot, wellness ring */
+.glance-rise {
+  animation: glance-rise .55s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes glance-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 12px; padding: 3px 8px; border-radius: 9999px;
+}
+.chip.up { color: var(--lime); background: rgba(194, 239, 78, .12); }
+.chip.down { color: #bcaaff; background: rgba(106, 95, 193, .22); }
+
+.spark-wrap { position: relative; height: 40px; margin-top: 10px; }
+.spark-wrap .spark { height: 100%; margin-top: 0; }
+.spark-dot {
+  position: absolute; width: 7px; height: 7px; border-radius: 50%; pointer-events: none;
+  background: var(--violet); box-shadow: 0 0 0 3px rgba(106, 95, 193, .22);
+  transform: translate(-50%, -50%); animation: dot-pop .45s var(--ease) both;
+}
+.spark-wrap.lime .spark-dot { background: var(--lime); box-shadow: 0 0 0 3px rgba(194, 239, 78, .18); }
+@keyframes dot-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.wellness-card { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.ring-wrap { position: relative; width: 132px; height: 132px; flex: 0 0 132px; }
+.ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-track { fill: none; stroke: var(--surface-2); stroke-width: 9; }
+.ring-fill {
+  fill: none; stroke: var(--lime); stroke-width: 9; stroke-linecap: round;
+  transition: stroke-dashoffset 1.4s var(--ease);
+  filter: drop-shadow(0 0 6px rgba(194, 239, 78, .3));
+}
+.ring-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.ring-value { font-family: var(--font-display); font-size: 30px; font-weight: 600; line-height: 1; }
+.ring-unit { font-size: 11px; color: #b9b0d6; margin-top: 4px; letter-spacing: .06em; }
+.wellness-copy { flex: 1; min-width: 200px; }
+.wellness-headline { font-family: var(--font-display); font-size: 22px; margin-top: 6px; }
+
 /* wellness meter */
 .meter { height: 6px; border-radius: 9999px; background: var(--on-dark-faint); overflow: hidden; margin-top: 10px; }
 .meter > span { display: block; height: 100%; border-radius: 9999px; background: linear-gradient(90deg, var(--lime), var(--ok)); animation: meter-fill .9s cubic-bezier(.22, .61, .36, 1) both; }

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { api } from "../api";
 import Sparkline from "../components/Sparkline";
 import CountUp from "../components/CountUp";
 import SleepLogCard from "../components/SleepLogCard";
 import SleepTile from "../components/SleepTile";
 import SleepDetailModal from "../components/SleepDetailModal";
+import WellnessRing from "../components/WellnessRing";
 
 function num(v: any): number | null {
   return typeof v === "number" && !Number.isNaN(v) ? v : null;
@@ -19,6 +21,14 @@ function trendSeries(trend: any): (number | null)[] {
     const n = parseFloat(v?.value);
     return Number.isNaN(n) ? null : n;
   });
+}
+function deltaOf(series: (number | null)[]): number | null {
+  const nums = series.filter((v): v is number => typeof v === "number");
+  if (nums.length < 2) return null;
+  return nums[nums.length - 1] - nums[nums.length - 2];
+}
+function rise(i: number) {
+  return { ["--i" as any]: i } as CSSProperties;
 }
 
 export default function Dashboard() {
@@ -103,12 +113,18 @@ export default function Dashboard() {
   const act = pick(today, "activity") || {};
   const temp = pick(today, "temperature") || {};
 
+  const hrSeries = trendSeries(tHr);
+  const stepSeries = trendSeries(tSteps);
+  const hrDelta = deltaOf(hrSeries);
+  const stepDelta = deltaOf(stepSeries);
+  const score = num(wellness?.wellness_score);
+
   const metrics = [
-    { label: "Resting HR", value: num(hr.resting), digits: 0, suffix: " bpm", spark: trendSeries(tHr) },
-    { label: "Avg HR", value: num(hr.average), digits: 0, suffix: " bpm", spark: trendSeries(tHr) },
-    { label: "Steps", value: liveSteps ?? num(act.steps), digits: 0, suffix: "", spark: trendSeries(tSteps) },
-    { label: "Active min", value: num(act.active_minutes), digits: 0, suffix: " min", spark: trendSeries(tSteps) },
-    { label: "Temp", value: num(temp.average), digits: 1, suffix: " °C", spark: [] },
+    { label: "Resting HR", value: num(hr.resting), digits: 0, suffix: " bpm", spark: hrSeries, delta: hrDelta, unit: " bpm" },
+    { label: "Avg HR", value: num(hr.average), digits: 0, suffix: " bpm", spark: hrSeries, delta: null, unit: " bpm" },
+    { label: "Steps", value: liveSteps ?? num(act.steps), digits: 0, suffix: "", spark: stepSeries, delta: stepDelta, unit: "" },
+    { label: "Active min", value: num(act.active_minutes), digits: 0, suffix: " min", spark: stepSeries, delta: null, unit: " min" },
+    { label: "Temp", value: num(temp.average), digits: 1, suffix: " °C", spark: [], delta: null, unit: " °C" },
   ];
 
   return (
@@ -119,12 +135,18 @@ export default function Dashboard() {
 
       <div className="grid cols-3">
         {metrics.map((m, i) => (
-          <div className="card lift anim-up" key={m.label} style={{ animationDelay: `${i * 60}ms` }}>
+          <div className="card lift glance-rise" key={m.label} style={rise(i)}>
             <div className="label">{m.label}</div>
             <div className="value">
               <CountUp value={m.value} digits={m.digits} suffix={m.suffix} />
             </div>
-            <Sparkline values={m.spark} lime={m.label === "Steps"} />
+            {m.delta !== null && (
+              <span className={`chip ${m.delta >= 0 ? "up" : "down"}`}>
+                {m.delta >= 0 ? "↑" : "↓"} {Math.abs(m.delta).toFixed(0)}
+                {m.unit}
+              </span>
+            )}
+            <Sparkline values={m.spark} lime={m.label === "Steps"} delay={i * 0.07} />
           </div>
         ))}
         <SleepTile
@@ -137,26 +159,8 @@ export default function Dashboard() {
       </div>
 
       <div className="grid cols-3" style={{ marginTop: 16 }}>
-        <div className="card lift anim-up" style={{ gridColumn: "span 3", animationDelay: "120ms" }}>
-          <div className="label">Wellness</div>
-          <div className="value" style={{ fontSize: 22 }}>
-            <CountUp
-              value={num(wellness?.wellness_score)}
-              suffix={num(wellness?.wellness_score) !== null ? " / 100" : ""}
-            />
-          </div>
-          <div className="meter">
-            <span
-              style={{
-                width: `${Math.max(0, Math.min(100, num(wellness?.wellness_score) ?? 0))}%`,
-              }}
-            />
-          </div>
-          <div className="meta">
-            {wellness?.wellness === "no data"
-              ? "no assessment yet"
-              : `stress ${wellness?.stress_level ?? "—"} · confidence ${wellness?.confidence ?? "—"}`}
-          </div>
+        <div className="card lift glance-rise" style={{ gridColumn: "span 3", ...rise(6) }}>
+          <WellnessRing score={score} stress={wellness?.stress_level} confidence={wellness?.confidence} />
         </div>
       </div>
 
