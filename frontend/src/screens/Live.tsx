@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import Sparkline from "../components/Sparkline";
 import FlashValue from "../components/FlashValue";
+import HrTrace from "../components/HrTrace";
 
 type Reading = {
   recordedAt: string | null;
@@ -71,18 +72,52 @@ function HeartRate({ bpm }: { bpm: number | null }) {
   );
 }
 
-function EcgTrace() {
-  const beat = "M0 20 H18 L21 20 L24 9 L27 31 L30 13 L33 20 H48 L50 16 L52 24 L54 20 H100";
+function LiveHrCard({
+  latest,
+  readings,
+  status,
+}: {
+  latest: Reading;
+  readings: Reading[];
+  status: string;
+}) {
+  const bpm = num(latest.heartRate);
+  const fingerOff = latest.fingerDetected === 0;
+  const liveHr = status === "live" && bpm !== null && !fingerOff;
+  const chrono = readings.slice().reverse();
+  const values = chrono.map((r) => num(r.heartRate));
+  const state = fingerOff
+    ? "Finger off"
+    : status !== "live"
+      ? "No signal"
+      : bpm === null
+        ? "No live HR"
+        : "Live";
+
   return (
-    <div className="card ecg-card anim-up" style={{ animationDelay: "120ms" }}>
-      <div className="label">ECG trace · live</div>
-      <svg className="ecg" viewBox="0 0 400 40" preserveAspectRatio="none" aria-hidden="true">
-        <g className="ecg-track">
-          {[0, 100, 200, 300].map((x) => (
-            <path key={x} d={beat} transform={`translate(${x} 0)`} />
-          ))}
-        </g>
-      </svg>
+    <div className="card live-hr-card anim-up" style={{ animationDelay: "120ms" }}>
+      <div className="live-hr-head">
+        <div className="label">Live HR</div>
+        <span className={`live-hr-state${liveHr ? " live" : ""}`}>{state}</span>
+        <div className="spacer" />
+        <span className="muted">{latest ? `updated ${ago(latest.recordedAt)}` : "waiting for device"}</span>
+      </div>
+      <div className="live-hr-body">
+        <div className="live-hr-value">
+          <FlashValue value={bpm} suffix=" bpm" />
+        </div>
+        <div className="live-hr-meta">
+          {fingerOff
+            ? "Finger not detected"
+            : bpm === null
+              ? "No live heart-rate samples"
+              : "From the latest raw reading"}
+        </div>
+      </div>
+      <HrTrace values={values} live={liveHr} />
+      <div className="live-hr-foot">
+        {readings.length} readings · {bpm === null ? "no pulse data" : "real samples only"}
+      </div>
     </div>
   );
 }
@@ -131,7 +166,6 @@ export default function Live() {
 
   // Sparklines expect chronological order; the API returns newest first.
   const chrono = readings.slice().reverse();
-  const hrSeries = chrono.map((r) => num(r.heartRate));
   const tempSeries = chrono.map((r) => num(r.temperature));
 
   let perMin = 0;
@@ -184,17 +218,11 @@ export default function Live() {
             <Metric label="Accel magnitude" value={accelMag(latest)} digits={2} suffix=" g" />
           </div>
 
-          <EcgTrace />
+          <LiveHrCard latest={latest} readings={readings} status={status} />
 
-          <div className="grid cols-2" style={{ marginTop: 16 }}>
-            <div className="card">
-              <div className="label">Heart rate · last {readings.length} readings</div>
-              <Sparkline values={hrSeries} lime />
-            </div>
-            <div className="card">
-              <div className="label">Temperature · last {readings.length} readings</div>
-              <Sparkline values={tempSeries} />
-            </div>
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="label">Temperature · last {readings.length} readings</div>
+            <Sparkline values={tempSeries} />
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>

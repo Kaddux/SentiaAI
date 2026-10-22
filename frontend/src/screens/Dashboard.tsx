@@ -7,6 +7,8 @@ import SleepLogCard from "../components/SleepLogCard";
 import SleepTile from "../components/SleepTile";
 import SleepDetailModal from "../components/SleepDetailModal";
 import WellnessRing from "../components/WellnessRing";
+import LiveNow from "../components/LiveNow";
+import { useRecentSensors } from "../hooks/useRecentSensors";
 
 function num(v: any): number | null {
   return typeof v === "number" && !Number.isNaN(v) ? v : null;
@@ -43,23 +45,37 @@ export default function Dashboard() {
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [sleepModalMode, setSleepModalMode] = useState<"past" | "detail">("detail");
 
+  const live = useRecentSensors(60, 2000);
+
   useEffect(() => {
     (async () => {
-      try {
-        const [td, wl, hr, st, sl] = await Promise.all([
-          api.today(), api.wellness(), api.trends("heart_rate", 7), api.trends("steps", 7),
-          api.sleepSummary(7),
-        ]);
-        setToday(td);
-        setWellness(wl);
-        setTHr(hr);
-        setTSteps(st);
-        setSleep(sl);
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
+      const results = await Promise.allSettled([
+        api.today(),
+        api.wellness(),
+        api.trends("heart_rate", 7),
+        api.trends("steps", 7),
+        api.sleepSummary(7),
+      ]);
+      const failed: string[] = [];
+      const labels = ["today", "wellness", "heart-rate trend", "steps trend", "sleep"];
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") {
+          const value = (r as PromiseFulfilledResult<any>).value;
+          if (i === 0) setToday(value);
+          if (i === 1) setWellness(value);
+          if (i === 2) setTHr(value);
+          if (i === 3) setTSteps(value);
+          if (i === 4) setSleep(value);
+        } else {
+          failed.push(labels[i]);
+        }
+      });
+      setError(
+        failed.length
+          ? `Some daily data is unavailable (${failed.join(", ")}). Live values above are still updating.`
+          : null
+      );
+      setLoading(false);
     })();
   }, []);
 
@@ -90,25 +106,6 @@ export default function Dashboard() {
     }
   }
 
-  if (loading)
-    return (
-      <>
-        <h2 className="section-title">
-          Today at a <span className="hl">glance</span>
-        </h2>
-        <div className="grid cols-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div className="card anim-up" key={i} style={{ animationDelay: `${i * 50}ms` }}>
-              <div className="skel line" style={{ width: "42%" }} />
-              <div className="skel big" />
-              <div className="skel" style={{ height: 40, marginTop: 10 }} />
-            </div>
-          ))}
-        </div>
-      </>
-    );
-  if (error) return <div className="empty">{error}</div>;
-
   const hr = pick(today, "heart_rate") || {};
   const act = pick(today, "activity") || {};
   const temp = pick(today, "temperature") || {};
@@ -118,6 +115,8 @@ export default function Dashboard() {
   const hrDelta = deltaOf(hrSeries);
   const stepDelta = deltaOf(stepSeries);
   const score = num(wellness?.wellness_score);
+  const scoreLow = num(wellness?.score_low);
+  const scoreHigh = num(wellness?.score_high);
 
   const metrics = [
     { label: "Resting HR", value: num(hr.resting), digits: 0, suffix: " bpm", spark: hrSeries, delta: hrDelta, unit: " bpm" },
@@ -133,36 +132,76 @@ export default function Dashboard() {
         Today at a <span className="hl">glance</span>
       </h2>
 
-      <div className="grid cols-3">
-        {metrics.map((m, i) => (
-          <div className="card lift glance-rise" key={m.label} style={rise(i)}>
-            <div className="label">{m.label}</div>
-            <div className="value">
-              <CountUp value={m.value} digits={m.digits} suffix={m.suffix} />
-            </div>
-            {m.delta !== null && (
-              <span className={`chip ${m.delta >= 0 ? "up" : "down"}`}>
-                {m.delta >= 0 ? "↑" : "↓"} {Math.abs(m.delta).toFixed(0)}
-                {m.unit}
-              </span>
-            )}
-            <Sparkline values={m.spark} lime={m.label === "Steps"} delay={i * 0.07} />
-          </div>
-        ))}
-        <SleepTile
-          summary={sleep}
-          onOpen={() => {
-            setSleepModalMode("detail");
-            setSleepModalOpen(true);
-          }}
-        />
-      </div>
-
-      <div className="grid cols-3" style={{ marginTop: 16 }}>
-        <div className="card lift glance-rise" style={{ gridColumn: "span 3", ...rise(6) }}>
-          <WellnessRing score={score} stress={wellness?.stress_level} confidence={wellness?.confidence} />
+      <LiveNow
+        latest={live.data?.latest ?? null}
+        readings={live.data?.readings ?? []}
+        steps={liveSteps}
+      />
+      {live.error && !live.data && (
+        <div className="muted" style={{ marginBottom: 12 }}>
+          Live readings are unavailable right now — {live.error}
         </div>
-      </div>
+      )}
+      {error && (
+        <div className="muted" style={{ marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid cols-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div className="card anim-up" key={i} style={{ animationDelay: `${i * 50}ms` }}>
+              <div className="skel line" style={{ width: "42%" }} />
+              <div className="skel big" />
+              <div className="skel" style={{ height: 40, marginTop: 10 }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="muted" style={{ margin: "0 0 10px" }}>
+            Daily cards update after each closed 5-min window; live values above are immediate.
+          </div>
+          <div className="grid cols-3">
+            {metrics.map((m, i) => (
+              <div className="card lift glance-rise" key={m.label} style={rise(i)}>
+                <div className="label">{m.label}</div>
+                <div className="value">
+                  <CountUp value={m.value} digits={m.digits} suffix={m.suffix} />
+                </div>
+                {m.delta !== null && (
+                  <span className={`chip ${m.delta >= 0 ? "up" : "down"}`}>
+                    {m.delta >= 0 ? "↑" : "↓"} {Math.abs(m.delta).toFixed(0)}
+                    {m.unit}
+                  </span>
+                )}
+                <Sparkline values={m.spark} lime={m.label === "Steps"} delay={i * 0.07} />
+              </div>
+            ))}
+            <SleepTile
+              summary={sleep}
+              onOpen={() => {
+                setSleepModalMode("detail");
+                setSleepModalOpen(true);
+              }}
+            />
+          </div>
+
+          <div className="grid cols-3" style={{ marginTop: 16 }}>
+            <div className="card lift glance-rise" style={{ gridColumn: "span 3", ...rise(6) }}>
+              <WellnessRing
+                score={score}
+                stress={wellness?.stress_level}
+                confidence={wellness?.confidence}
+                provisional={wellness?.provisional === true}
+                scoreLow={scoreLow}
+                scoreHigh={scoreHigh}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       <SleepLogCard
         onOpenDetail={(mode) => {

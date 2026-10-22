@@ -356,6 +356,33 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 .ring-unit { font-size: 11px; color: #b9b0d6; margin-top: 4px; letter-spacing: .06em; }
 .wellness-copy { flex: 1; min-width: 200px; }
 .wellness-headline { font-family: var(--font-display); font-size: 22px; margin-top: 6px; }
+.ring-provisional {
+  fill: none; stroke: var(--violet-mid); stroke-width: 7;
+  stroke-dasharray: 4 7; opacity: .85;
+}
+.ring-value.ring-range { font-size: 22px; letter-spacing: -.01em; }
+.wellness-card.provisional .ring-value { color: var(--violet-mid); }
+.wellness-card.provisional .wellness-headline { color: var(--violet-mid); }
+.wellness-note {
+  margin-top: 8px; font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .04em; color: #b9b0d6;
+}
+
+/* immediate live strip */
+.live-now-card { margin-bottom: 16px; }
+.live-now-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 10px; }
+@media (max-width: 720px) { .live-now-grid { grid-template-columns: repeat(2, 1fr); } }
+.live-now-value {
+  font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.live-now-card .hr-trace { height: 44px; margin-top: 10px; }
+.live-now-empty {
+  margin-top: 12px; padding: 16px; text-align: center; font-size: 14px;
+  color: var(--on-dark-muted); border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-lg);
+}
+.live-now-note { margin-top: 6px; font-size: 12px; color: var(--on-dark-muted); }
 
 /* wellness meter */
 .meter { height: 6px; border-radius: 9999px; background: var(--on-dark-faint); overflow: hidden; margin-top: 10px; }
@@ -416,14 +443,30 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
   48% { transform: scale(1); }
 }
 
-.ecg-card { margin-top: 16px; }
-.ecg { display: block; width: 100%; height: 64px; margin-top: 8px; overflow: hidden; }
-.ecg-track {
-  fill: none; stroke: var(--lime); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
-  filter: drop-shadow(0 0 4px rgba(194, 239, 78, .5));
-  animation: ecg-scroll 4s linear infinite; will-change: transform;
+.live-hr-card { margin-top: 16px; }
+.live-hr-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.live-hr-state {
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--on-dark-muted); border: 1px solid var(--hairline);
+  border-radius: 9999px; padding: 2px 8px;
 }
-@keyframes ecg-scroll { from { transform: translateX(0); } to { transform: translateX(-100px); } }
+.live-hr-state.live {
+  color: var(--lime); border-color: rgba(194, 239, 78, .4);
+  background: rgba(194, 239, 78, .08);
+}
+.live-hr-body { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.live-hr-value { font-family: var(--font-display); font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.live-hr-meta { font-size: 12px; color: var(--on-dark-muted); }
+.live-hr-foot { font-family: var(--font-mono); font-size: 11px; color: #b9b0d6; margin-top: 6px; }
+
+.hr-trace { position: relative; height: 64px; margin-top: 10px; }
+.hr-trace svg { width: 100%; height: 100%; display: block; }
+.hr-trace-line {
+  fill: none; stroke: var(--lime); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.hr-trace:not(.live) .hr-trace-line { stroke: var(--on-dark-muted); opacity: .55; }
+.hr-trace.empty { height: 40px; border-bottom: 1px dashed var(--hairline-strong); }
 
 .live-table-wrap { position: relative; }
 .live-table-wrap::after {

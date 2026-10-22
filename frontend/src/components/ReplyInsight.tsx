@@ -116,21 +116,29 @@ export default function ReplyInsight({ topic }: { topic: InsightTopic }) {
   if (data.kind === "wellness") {
     const score = num(data.w?.wellness_score);
     if (score === null) return null;
+    const provisional = data.w?.provisional === true;
+    const low = num(data.w?.score_low);
+    const high = num(data.w?.score_high);
+    const showRange = provisional && low !== null && high !== null;
     const left = mounted ? Math.max(0, Math.min(100, score)) : 0;
     return (
       <div className="insight-card">
-        <div className="insight-label">Wellness</div>
+        <div className="insight-label">Wellness{provisional ? " · early estimate" : ""}</div>
         <div className="insight-value">
-          {Math.round(score)}
-          <small>/ 100</small>
+          {showRange ? `${low}–${high}` : Math.round(score)}
+          <small>{showRange ? "range" : "/ 100"}</small>
         </div>
-        <div className="insight-gauge" aria-hidden="true">
-          <span className="insight-gauge-marker" style={{ left: `${left}%` }} />
-        </div>
+        {!provisional && (
+          <div className="insight-gauge" aria-hidden="true">
+            <span className="insight-gauge-marker" style={{ left: `${left}%` }} />
+          </div>
+        )}
         <div className="insight-note">
-          {data.w?.stress_level
-            ? `stress looks ${String(data.w.stress_level).toLowerCase()}`
-            : "current assessment"}
+          {provisional
+            ? "Provisional · low confidence · collecting more data"
+            : data.w?.stress_level
+              ? `stress looks ${String(data.w.stress_level).toLowerCase()}`
+              : "current assessment"}
         </div>
       </div>
     );
