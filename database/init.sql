@@ -47,6 +47,7 @@ CREATE TABLE sensor_readings (
     button_pressed  INTEGER,
     temp_valid      INTEGER,
     finger_detected INTEGER,
+    steps_total     INTEGER,
     created_at      TIMESTAMP DEFAULT NOW(),
     PRIMARY KEY (id, recorded_at)
 ) PARTITION BY RANGE (recorded_at);

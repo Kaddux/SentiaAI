@@ -33,6 +33,7 @@ type Reading = {
   buttonPressed: number | null;
   tempValid: number | null;
   fingerDetected: number | null;
+  stepsTotal: number | null;
 };
 
 let state: BridgeState = "idle";
@@ -89,6 +90,7 @@ function parsePacket(line: string): Reading | null {
   let temp: string, tValid: string, hrRaw: string, finger: string;
   let battV: string, battPct: string, button: string;
   let ax: string, ay: string, az: string, gx: string, gy: string, gz: string;
+  let stepsTotal: number | null = null;
 
   if (p.length === 13) {
     [temp, tValid, hrRaw, finger, battV, battPct, button, ax, ay, az, gx, gy, gz] = p;
@@ -106,6 +108,7 @@ function parsePacket(line: string): Reading | null {
     gx = p[11];
     gy = p[12];
     gz = p[13];
+    if (p.length >= 16) stepsTotal = toInt(p[15]);
   } else {
     return null;
   }
@@ -130,6 +133,7 @@ function parsePacket(line: string): Reading | null {
     buttonPressed: toInt(button),
     tempValid: toInt(tValid),
     fingerDetected: fingerN,
+    stepsTotal,
   };
 }
 
@@ -137,7 +141,8 @@ function telemetryLine(r: Reading): string {
   const temp = r.temperature === null ? "--" : `${r.temperature.toFixed(2)}C`;
   const hr = r.heartRate === null ? "--" : `${r.heartRate} bpm`;
   const batt = r.batteryV === null ? "--" : `${r.batteryV.toFixed(2)}V (${r.batteryPct ?? "?"}%)`;
-  return `temp ${temp} | HR ${hr} | batt ${batt} | finger=${r.fingerDetected ?? "?"}`;
+  const steps = r.stepsTotal === null ? "" : ` | steps=${r.stepsTotal}`;
+  return `temp ${temp} | HR ${hr} | batt ${batt} | finger=${r.fingerDetected ?? "?"}${steps}`;
 }
 
 function status() {

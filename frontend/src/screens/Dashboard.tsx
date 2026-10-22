@@ -131,10 +131,13 @@ export default function Dashboard() {
       ? stepsInfo.base_steps + stepsInfo.live_steps
       : null;
   const stepsStored = stepsInfo && typeof stepsInfo.steps === "number" ? stepsInfo.steps : null;
+  const stepsDevice = stepsInfo && typeof stepsInfo.device_steps === "number" ? stepsInfo.device_steps : null;
   const stepsDisplay =
-    stepsStored !== null
-      ? Math.max(stepsLive ?? 0, stepsStored)
-      : stepsLive;
+    stepsInfo?.source === "device" && stepsDevice !== null
+      ? stepsDevice
+      : stepsStored !== null
+        ? Math.max(stepsLive ?? 0, stepsStored)
+        : stepsLive;
   const stepsMoving = stepsInfo?.moving === true;
   const liveLatest = live.data?.latest ?? null;
   const latestAge = liveLatest?.recordedAt

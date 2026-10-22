@@ -214,6 +214,43 @@ public class HealthService {
 		Instant dayStart = date.atStartOfDay(zone).toInstant();
 		Instant dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant();
 
+		// Device-side step counter (16th UDP field). When present it is the
+		// authoritative daily total; ML/base/live are only a fallback.
+		Long deviceSteps = jdbc.queryForObject("""
+				SELECT MAX(steps_total) FROM sensor_readings
+				WHERE user_id = ? AND recorded_at >= ? AND recorded_at < ?
+				  AND steps_total IS NOT NULL""", Long.class,
+				userId, asTs(dayStart), asTs(dayEnd));
+		if (deviceSteps != null) {
+			// The device counter is authoritative for the display. Keep the
+			// daily_steps row for history, but do not let an older ML estimate
+			// leak into a source that has a real on-device count.
+			jdbc.update("""
+					INSERT INTO daily_steps (user_id, step_date, steps, updated_at)
+					VALUES (?, ?, ?, NOW())
+					ON CONFLICT (user_id, step_date) DO UPDATE
+					  SET steps = GREATEST(daily_steps.steps, EXCLUDED.steps),
+					      updated_at = NOW()""",
+					userId, java.sql.Date.valueOf(date), deviceSteps);
+			long steps = deviceSteps;
+			Long recentDelta = jdbc.queryForObject("""
+					SELECT COALESCE(MAX(steps_total) - MIN(steps_total), 0)
+					FROM sensor_readings
+					WHERE user_id = ? AND recorded_at >= ? AND steps_total IS NOT NULL""",
+					Long.class, userId, asTs(Instant.now().minus(5, ChronoUnit.SECONDS)));
+			Map<String, Object> out = new LinkedHashMap<>();
+			out.put("date", date);
+			out.put("steps", steps);
+			out.put("base_steps", deviceSteps);
+			out.put("live_steps", 0);
+			out.put("estimated", false);
+			out.put("source", "device");
+			out.put("moving", recentDelta != null && recentDelta > 0);
+			out.put("cadence_per_min", 0);
+			out.put("device_steps", deviceSteps);
+			return out;
+		}
+
 		long base = 0;
 		Instant lastClassifiedEnd = null;
 		List<Map<String, Object>> baseRows = jdbc.queryForList("""
@@ -301,6 +338,7 @@ public class HealthService {
 		out.put("base_steps", base);
 		out.put("live_steps", Math.round(liveSteps));
 		out.put("estimated", true);
+		out.put("source", "estimated");
 		out.put("moving", moving);
 		out.put("cadence_per_min", cadence);
 		return out;
