@@ -26,7 +26,7 @@ export default function StreamingText({
     const id = window.setInterval(() => {
       i += 1;
       setShown(i);
-      tickRef.current?.();
+      if (i % 3 === 0 || i >= total) tickRef.current?.();
       if (i >= total) window.clearInterval(id);
     }, 24);
     return () => window.clearInterval(id);

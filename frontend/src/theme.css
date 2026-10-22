@@ -184,6 +184,7 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 .insight-note { font-size: 12px; color: var(--on-dark-muted); margin-top: 6px; }
 .insight-spark { flex: 0 0 96px; max-width: 46%; }
 .insight-spark .spark-wrap { height: 34px; margin-top: 0; }
+.insight-spark .spark { height: 34px; margin-top: 0; }
 .insight-bars { display: flex; align-items: flex-end; gap: 4px; height: 44px; margin-top: 10px; }
 .insight-bars span {
   flex: 1; border-radius: 3px 3px 0 0; transform-origin: bottom;
@@ -305,7 +306,7 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 
 /* entrance helpers */
 .screen { animation: screen-in .34s cubic-bezier(.22, .61, .36, 1) both; }
-.anim-up { animation: fade-up .5s cubic-bezier(.22, .61, .36, 1) both; }
+.anim-up { animation: fade-up .5s cubic-bezier(.22, .61, .36, 1) backwards; }
 
 /* card hover lift */
 .card.lift { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
@@ -313,7 +314,7 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 
 /* dashboard pass — staggered rise, trend chips, spark dot, wellness ring */
 .glance-rise {
-  animation: glance-rise .55s var(--ease) both;
+  animation: glance-rise .55s var(--ease) backwards;
   animation-delay: calc(var(--i, 0) * 70ms);
 }
 @keyframes glance-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -404,7 +405,7 @@ table.dev th { color: var(--on-dark-muted); font-size: 11px; text-transform: upp
 
 .live-hr-row { display: flex; align-items: center; gap: 8px; }
 .hr-heart {
-  width: 28px; height: 28px; color: var(--pink); flex: 0 0 auto;
+  width: 28px; height: 28px; color: var(--lime); flex: 0 0 auto;
   transform-origin: center; animation: heartbeat 1s ease-in-out infinite;
 }
 @keyframes heartbeat {
