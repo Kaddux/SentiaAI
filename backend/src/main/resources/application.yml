@@ -32,6 +32,11 @@ app:
     std-floor-pct: ${ANALYTICS_STD_FLOOR_PCT:0.15}
     aggregate-interval-ms: ${ANALYTICS_AGGREGATE_INTERVAL_MS:300000}
     baseline-interval-ms: ${ANALYTICS_BASELINE_INTERVAL_MS:300000}
+  steps:
+    interval-ms: ${STEPS_INTERVAL_MS:2000}
+    motion-threshold-g: ${STEPS_MOTION_THRESHOLD_G:0.12}
+    refractory-ms: ${STEPS_REFRACTORY_MS:280}
+    gyro-weight: ${STEPS_GYRO_WEIGHT:0.01}
   reminders:
     # reminder_time (HH:MM) is interpreted in this zone.
     zone: ${REMINDERS_TZ:Asia/Kolkata}

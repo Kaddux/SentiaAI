@@ -119,7 +119,6 @@ export default function Dashboard() {
   const hrSeries = trendSeries(tHr);
   const stepSeries = trendSeries(tSteps);
   const hrDelta = deltaOf(hrSeries);
-  const stepDelta = deltaOf(stepSeries);
   const score = num(wellness?.wellness_score);
   const scoreLow = num(wellness?.score_low);
   const scoreHigh = num(wellness?.score_high);
@@ -132,9 +131,12 @@ export default function Dashboard() {
       : null;
   const stepsStored = stepsInfo && typeof stepsInfo.steps === "number" ? stepsInfo.steps : null;
   const stepsDevice = stepsInfo && typeof stepsInfo.device_steps === "number" ? stepsInfo.device_steps : null;
+  const stepsAuthoritative =
+    stepsInfo?.source === "device" ? stepsDevice :
+    stepsInfo?.source === "host" ? stepsStored : null;
   const stepsDisplay =
-    stepsInfo?.source === "device" && stepsDevice !== null
-      ? stepsDevice
+    stepsAuthoritative !== null
+      ? stepsAuthoritative
       : stepsStored !== null
         ? Math.max(stepsLive ?? 0, stepsStored)
         : stepsLive;
@@ -149,7 +151,7 @@ export default function Dashboard() {
   const metrics = [
     { label: "Resting HR", value: num(hr.resting), digits: 0, suffix: " bpm", spark: hrSeries, delta: hrDelta, unit: " bpm" },
     { label: "Avg HR", value: num(hr.average), digits: 0, suffix: " bpm", spark: hrSeries, delta: null, unit: " bpm" },
-    { label: "Steps", value: stepsDisplay ?? num(act.steps), digits: 0, suffix: "", spark: stepSeries, delta: stepDelta, unit: "" },
+    { label: "Steps", value: stepsDisplay ?? num(act.steps), digits: 0, suffix: "", spark: stepSeries, delta: null, unit: "" },
     { label: "Active min", value: num(act.active_minutes), digits: 0, suffix: " min", spark: stepSeries, delta: null, unit: " min" },
     { label: "Temp", value: num(temp.average), digits: 1, suffix: " °C", spark: [], delta: null, unit: " °C" },
   ];

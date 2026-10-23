@@ -266,6 +266,18 @@ CREATE TABLE daily_steps (
     PRIMARY KEY (user_id, step_date)
 );
 
+-- Incremental host-side step detector over the 15-field accel/gyro stream.
+CREATE TABLE step_state (
+    user_id             UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    step_date           DATE NOT NULL,
+    last_processed_at   TIMESTAMP,
+    last_signal         DOUBLE PRECISION NOT NULL DEFAULT 0,
+    last_peak_at        TIMESTAMP,
+    steps               INTEGER NOT NULL DEFAULT 0,
+    moving              BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at          TIMESTAMP DEFAULT NOW()
+);
+
 -- ============================================================
 -- ai_schema — owned by AI Service
 -- ============================================================

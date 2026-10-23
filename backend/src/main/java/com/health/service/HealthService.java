@@ -46,6 +46,7 @@ public class HealthService {
 	private final ActivityRepository activityRepository;
 	private final TemperatureRepository temperatureRepository;
 	private final AssessmentRepository assessmentRepository;
+	private final StepsService stepsService;
 
 	public HealthService(JdbcTemplate jdbc,
 			UserRepository userRepository,
@@ -53,7 +54,8 @@ public class HealthService {
 			SleepRepository sleepRepository,
 			ActivityRepository activityRepository,
 			TemperatureRepository temperatureRepository,
-			AssessmentRepository assessmentRepository) {
+			AssessmentRepository assessmentRepository,
+			StepsService stepsService) {
 		this.jdbc = jdbc;
 		this.userRepository = userRepository;
 		this.baselineRepository = baselineRepository;
@@ -61,6 +63,7 @@ public class HealthService {
 		this.activityRepository = activityRepository;
 		this.temperatureRepository = temperatureRepository;
 		this.assessmentRepository = assessmentRepository;
+		this.stepsService = stepsService;
 	}
 
 	/** User-local calendar zone (falls back to UTC for missing/invalid values). */
@@ -168,7 +171,27 @@ public class HealthService {
 		Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
 		List<ActivityRecord> records = activityRepository.findForRange(userId, from, to);
 		if (records.isEmpty()) {
-			return Map.of("activity", "no data");
+			// No classified windows yet (first minutes of the day). Still expose
+			// the current step source so the dashboard/chat are not empty.
+			Map<String, Object> empty = new LinkedHashMap<>();
+			Long deviceSteps = jdbc.queryForObject("""
+					SELECT MAX(steps_total) FROM sensor_readings
+					WHERE user_id = ? AND recorded_at >= ? AND recorded_at < ?
+					  AND steps_total IS NOT NULL""", Long.class,
+					userId, asTs(from), asTs(to));
+			if (deviceSteps != null) {
+				empty.put("steps", deviceSteps);
+				empty.put("steps_source", "device");
+			} else {
+				Map<String, Object> host = stepsService.refresh(userId);
+				empty.put("steps", host.get("steps"));
+				empty.put("steps_source", "host");
+			}
+			empty.put("active_minutes", 0);
+			empty.put("total_minutes", 0);
+			empty.put("dominant_activity", "unknown");
+			empty.put("breakdown", Map.of());
+			return empty;
 		}
 		int steps = 0;
 		int activeMinutes = 0;
@@ -207,7 +230,9 @@ public class HealthService {
 			m.put("steps", deviceSteps);
 			m.put("steps_source", "device");
 		} else {
-			m.put("steps_source", "estimated");
+			Map<String, Object> host = stepsService.refresh(userId);
+			m.put("steps", ((Number) host.get("steps")).longValue());
+			m.put("steps_source", "host");
 		}
 		return m;
 	}
@@ -264,96 +289,21 @@ public class HealthService {
 			return out;
 		}
 
-		long base = 0;
-		Instant lastClassifiedEnd = null;
-		List<Map<String, Object>> baseRows = jdbc.queryForList("""
-				SELECT COALESCE(SUM(steps), 0) AS steps, MAX(end_time) AS last_end
-				FROM activity_records
-				WHERE user_id = ? AND start_time >= ? AND start_time < ?""",
-				userId, asTs(dayStart), asTs(dayEnd));
-		if (!baseRows.isEmpty()) {
-			Object s = baseRows.get(0).get("steps");
-			base = s == null ? 0 : ((Number) s).longValue();
-			lastClassifiedEnd = toInstant(baseRows.get(0).get("last_end"));
-		}
-
-		Instant rawFrom = lastClassifiedEnd != null ? lastClassifiedEnd : dayStart;
-		Instant tenMinAgo = Instant.now().minus(10, ChronoUnit.MINUTES);
-		if (rawFrom.isBefore(tenMinAgo)) {
-			rawFrom = tenMinAgo;
-		}
-
-		List<Map<String, Object>> raw = jdbc.queryForList("""
-				SELECT accel_x, accel_y, accel_z, recorded_at
-				FROM sensor_readings
-				WHERE user_id = ? AND recorded_at >= ? AND recorded_at < ?
-				ORDER BY recorded_at""",
-				userId, asTs(rawFrom), asTs(dayEnd));
-
-		double liveSteps = 0;
-		boolean moving = false;
-		int cadence = 0;
-		if (raw.size() >= 5) {
-			double devSum = 0;
-			int motionSamples = 0;
-			Instant first = null;
-			Instant last = null;
-			for (Map<String, Object> r : raw) {
-				double x = safeDouble(r.get("accel_x"));
-				double y = safeDouble(r.get("accel_y"));
-				double z = safeDouble(r.get("accel_z"));
-				double mag = Math.sqrt(x * x + y * y + z * z);
-				double dev = Math.abs(mag - 1.0); // distance from gravity at rest
-				devSum += dev;
-				if (dev > 0.12) {
-					motionSamples++;
-				}
-				Instant t = toInstant(r.get("recorded_at"));
-				if (t != null) {
-					if (first == null) {
-						first = t;
-					}
-					last = t;
-				}
-			}
-			double n = raw.size();
-			double motionRatio = motionSamples / n; // fraction of samples actually moving
-			double avgDev = devSum / n;
-			double spanSec = (first != null && last != null)
-					? (last.toEpochMilli() - first.toEpochMilli()) / 1000.0 : 0;
-
-			// Require sustained motion, and count only the moving time — not the
-			// whole window. A few noisy samples no longer add hundreds of steps.
-			if (motionRatio >= 0.15 && spanSec > 0) {
-				moving = true;
-				cadence = avgDev > 0.35 ? 150 : 100;
-				double movingSeconds = spanSec * motionRatio;
-				liveSteps = Math.min(500, cadence * movingSeconds / 60.0);
-			}
-		}
-
-		long estimate = base + Math.round(liveSteps);
-		// Persist a monotonic daily total so reclassification or live-estimate
-		// jitter can never make the dashboard count go backwards.
-		Long stored = jdbc.queryForObject("""
-				INSERT INTO daily_steps (user_id, step_date, steps, updated_at)
-				VALUES (?, ?, ?, NOW())
-				ON CONFLICT (user_id, step_date) DO UPDATE
-				  SET steps = GREATEST(daily_steps.steps, EXCLUDED.steps),
-				      updated_at = NOW()
-				RETURNING steps""",
-				Long.class, userId, java.sql.Date.valueOf(date), estimate);
-		long steps = stored != null ? stored : estimate;
-
+		// No device step field: use the incremental host detector over the
+		// 15-field accel/gyro stream. One source, monotonic, refreshed on every
+		// poll and by its own 2 s scheduler.
+		Map<String, Object> host = stepsService.refresh(userId);
+		long steps = ((Number) host.get("steps")).longValue();
 		Map<String, Object> out = new LinkedHashMap<>();
 		out.put("date", date);
 		out.put("steps", steps);
-		out.put("base_steps", base);
-		out.put("live_steps", Math.round(liveSteps));
+		out.put("base_steps", steps);
+		out.put("live_steps", 0);
 		out.put("estimated", true);
-		out.put("source", "estimated");
-		out.put("moving", moving);
-		out.put("cadence_per_min", cadence);
+		out.put("source", "host");
+		out.put("moving", Boolean.TRUE.equals(host.get("moving")));
+		out.put("cadence_per_min", 0);
+		out.put("device_steps", null);
 		return out;
 	}
 
