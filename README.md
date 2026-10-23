@@ -37,9 +37,6 @@ ESP32-C3 (HR · accel · temp · battery · panic)  ── UDP ─┐
                                   └──► LLM: NVIDIA NIM (primary) → DeepSeek (fallback)
 ```
 
-See **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** for the full decision log and program flow,
-and **[`HLD.md`](./HLD.md)** for the design diagram.
-
 ---
 
 ## Tech stack
@@ -153,11 +150,6 @@ udp_ingest_bridge.py   manual UDP → backend fallback (PC)
 csv_ingest_sim.py      replay a wearable CSV into the backend
 chat-test.ps1          quick chat smoke test
 docker-compose.yml     postgres, backend, ai-service, ml-service (+optional ollama)
-Sentia AI.md           implementation plan (v1.x)
-ARCHITECTURE.md        decisions + end-to-end flow (this repo)
-SENTRY_DESIGN.md       design system for the frontend (tokens + health adaptations)
-HLD.md                 high-level design diagram
-Minor_Project_Synopsis.md   academic write-up
 ```
 
 > **Note:** Sentia AI's Postgres is published on host port **5433** (containers use
@@ -167,10 +159,9 @@ Minor_Project_Synopsis.md   academic write-up
 
 ## Frontend dashboard
 
-A React + Vite + TypeScript dashboard styled with the **Sentry** design system
-(`SENTRY_DESIGN.md`). It shows the health dashboard (metric cards + sparklines +
-baseline deviations with alert/watch/ok flags), chat with the assistant, and
-reminders.
+A React + Vite + TypeScript dashboard styled with the **Sentry** design system.
+It shows the health dashboard (metric cards + sparklines + baseline deviations
+with alert/watch/ok flags), chat with the assistant, and reminders.
 
 ```bash
 docker compose up -d          # backend + AI service
@@ -225,5 +216,5 @@ signals once labeled data accumulates.
 
 ## Notes
 - The wearable's **UDP broadcast** (with reduced TX power) is the current, tested path
-  (see `context_2.md`); the **HTTP firmware** is the direct-device alternative.
+  (see the firmware source and comments); the **HTTP firmware** is the direct-device alternative.
 - **Not a diagnosis.** Always consult a healthcare professional for medical concerns.
