@@ -1,0 +1,213 @@
+{
+	"info": {
+		"name": "SentiaAI",
+		"description": "Sentia AI APIs. Login captures the JWT into the collection variable \"token\"; reminder create captures the id into \"reminderId\". The Assistant folder uses the AI service (port 8000).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8080" },
+		{ "key": "aiUrl", "value": "http://localhost:8000" },
+		{ "key": "token", "value": "" },
+		{ "key": "reminderId", "value": "" },
+		{ "key": "conversationId", "value": "" }
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const json = pm.response.json();",
+									"if (json.token) { pm.collectionVariables.set('token', json.token); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"postman@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"Postman\",\n  \"lastName\": \"User\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('returns token', () => pm.expect(json.token).to.be.a('string'));",
+									"pm.collectionVariables.set('token', json.token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"dev@sentia.ai\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "Sensors",
+			"item": [
+				{
+					"name": "Ingest (batch)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('inserted count', () => pm.expect(pm.response.json().inserted).to.be.a('number'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"readings\": [\n    { \"recordedAt\": \"2026-08-23T10:00:00Z\", \"heartRate\": 72, \"accelX\": 0.1, \"accelY\": 0.9, \"accelZ\": 0.2, \"temperature\": 36.5 },\n    { \"recordedAt\": \"2026-08-23T10:00:05Z\", \"heartRate\": 74, \"accelX\": 0.1, \"accelY\": 0.9, \"accelZ\": 0.2, \"temperature\": 36.5 }\n  ]\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/api/sensors/ingest", "host": ["{{baseUrl}}"], "path": ["api", "sensors", "ingest"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "Health",
+			"item": [
+				{ "name": "Profile", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/profile", "host": ["{{baseUrl}}"], "path": ["api", "health", "profile"] } } },
+				{ "name": "Today", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/today", "host": ["{{baseUrl}}"], "path": ["api", "health", "today"] } } },
+				{ "name": "Heart rate", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/heart-rate?date=2026-08-23", "host": ["{{baseUrl}}"], "path": ["api", "health", "heart-rate"], "query": [{ "key": "date", "value": "2026-08-23" }] } } },
+				{ "name": "Sleep", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/sleep?date=2026-08-23", "host": ["{{baseUrl}}"], "path": ["api", "health", "sleep"], "query": [{ "key": "date", "value": "2026-08-23" }] } } },
+				{ "name": "Activity", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/activity?date=2026-08-23", "host": ["{{baseUrl}}"], "path": ["api", "health", "activity"], "query": [{ "key": "date", "value": "2026-08-23" }] } } },
+				{ "name": "Temperature", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/temperature?date=2026-08-23", "host": ["{{baseUrl}}"], "path": ["api", "health", "temperature"], "query": [{ "key": "date", "value": "2026-08-23" }] } } },
+				{ "name": "Baseline", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/baseline", "host": ["{{baseUrl}}"], "path": ["api", "health", "baseline"] } } },
+				{ "name": "Compare baseline", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/compare-baseline?date=2026-08-23", "host": ["{{baseUrl}}"], "path": ["api", "health", "compare-baseline"], "query": [{ "key": "date", "value": "2026-08-23" }] } } },
+				{ "name": "Wellness", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/wellness?date=2026-08-23", "host": ["{{baseUrl}}"], "path": ["api", "health", "wellness"], "query": [{ "key": "date", "value": "2026-08-23" }] } } },
+				{ "name": "Trends", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/health/trends?metric=sleep&days=7", "host": ["{{baseUrl}}"], "path": ["api", "health", "trends"], "query": [{ "key": "metric", "value": "sleep" }, { "key": "days", "value": "7" }] } } }
+			]
+		},
+		{
+			"name": "Reminders",
+			"item": [
+				{
+					"name": "Create",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.collectionVariables.set('reminderId', json.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Morning water\",\n  \"description\": \"Drink a glass of water\",\n  \"reminderTime\": \"09:00\",\n  \"recurrence\": \"daily\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/api/reminders", "host": ["{{baseUrl}}"], "path": ["api", "reminders"] }
+					}
+				},
+				{ "name": "List", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": { "raw": "{{baseUrl}}/api/reminders", "host": ["{{baseUrl}}"], "path": ["api", "reminders"] } } },
+				{
+					"name": "Update",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Morning water (updated)\",\n  \"reminderTime\": \"09:30\",\n  \"recurrence\": \"daily\"\n}"
+						},
+						"url": { "raw": "{{baseUrl}}/api/reminders/{{reminderId}}", "host": ["{{baseUrl}}"], "path": ["api", "reminders", "{{reminderId}}"] }
+					}
+				},
+				{
+					"name": "Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/reminders/{{reminderId}}", "host": ["{{baseUrl}}"], "path": ["api", "reminders", "{{reminderId}}"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "Assistant (AI Service :8000)",
+			"item": [
+				{
+					"name": "Chat",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const json = pm.response.json();",
+									"if (json.conversation_id) { pm.collectionVariables.set('conversationId', json.conversation_id); }",
+									"pm.test('has assistant message', () => pm.expect(json.message.content).to.be.a('string'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"What are my typical baselines?\",\n  \"conversation_id\": null\n}"
+						},
+						"url": { "raw": "{{aiUrl}}/api/assistant/chat", "host": ["{{aiUrl}}"], "path": ["api", "assistant", "chat"] }
+					}
+				},
+				{
+					"name": "Chat history",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{aiUrl}}/api/assistant/history/{{conversationId}}", "host": ["{{aiUrl}}"], "path": ["api", "assistant", "history", "{{conversationId}}"] }
+					}
+				}
+			]
+		}
+	]
+}

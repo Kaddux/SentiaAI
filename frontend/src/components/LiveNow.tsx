@@ -40,6 +40,14 @@ export default function LiveNow({
   const liveHr = status === "live" && bpm !== null && !fingerOff;
   const chrono = readings.slice().reverse();
   const values = chrono.map((r) => num(r.heartRate));
+  const note =
+    status !== "live"
+      ? "No signal — the latest reading is older than 20 seconds."
+      : fingerOff
+        ? "Finger not detected — HR is not being measured. Steps still update live."
+        : bpm === null
+          ? "No live HR in the latest reading. Steps still update live."
+          : null;
 
   return (
     <div className="card live-now-card">
@@ -86,15 +94,7 @@ export default function LiveNow({
             </div>
           </div>
           <HrTrace values={values} live={liveHr} />
-          <div className="live-now-note">
-            {status !== "live"
-              ? "No signal — the latest reading is older than 20 seconds."
-              : fingerOff
-                ? "Finger not detected — HR is not being measured. Steps still update live."
-                : bpm === null
-                  ? "No live HR in the latest reading. Steps still update live."
-                  : "Live HR and steps update every 2 s; daily cards update after each 5-min window."}
-          </div>
+          {note && <div className="live-now-note">{note}</div>}
         </>
       )}
     </div>

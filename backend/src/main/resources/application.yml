@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/health_assistant}
     username: ${SPRING_DATASOURCE_USERNAME:health_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:health_pass}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -34,7 +34,7 @@ app:
     baseline-interval-ms: ${ANALYTICS_BASELINE_INTERVAL_MS:300000}
   steps:
     interval-ms: ${STEPS_INTERVAL_MS:2000}
-    motion-threshold-g: ${STEPS_MOTION_THRESHOLD_G:0.12}
+    motion-threshold-g: ${STEPS_MOTION_THRESHOLD_G:0.62}
     refractory-ms: ${STEPS_REFRACTORY_MS:280}
     gyro-weight: ${STEPS_GYRO_WEIGHT:0.01}
   reminders:

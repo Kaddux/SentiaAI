@@ -1,0 +1,114 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      # Host 5433 (not 5432) to avoid clashing with other local Postgres
+      # instances. Containers still reach it internally at postgres:5432.
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-health_assistant}
+      POSTGRES_USER: ${POSTGRES_USER:-health_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-health_user} -d ${POSTGRES_DB:-health_assistant}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-health_assistant}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-health_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      AI_SERVICE_URL: http://ai-service:8000
+      ML_SERVICE_URL: http://ml-service:8001
+      ANALYTICS_LOOKBACK_HOURS: ${ANALYTICS_LOOKBACK_HOURS:-24}
+      ANALYTICS_MIN_BUCKETS: ${ANALYTICS_MIN_BUCKETS:-2}
+      ANALYTICS_STD_FLOOR_PCT: ${ANALYTICS_STD_FLOOR_PCT:-0.15}
+      ANALYTICS_AGGREGATE_INTERVAL_MS: ${ANALYTICS_AGGREGATE_INTERVAL_MS:-300000}
+      ANALYTICS_BASELINE_INTERVAL_MS: ${ANALYTICS_BASELINE_INTERVAL_MS:-300000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-health_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-health_assistant}
+      LLM_PROVIDER: ${LLM_PROVIDER:-nvidia}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NVIDIA_MODEL: ${NVIDIA_MODEL:-nvidia/nemotron-3.5-lightning-30b-a3b}
+      LLM_FALLBACK_PROVIDER: ${LLM_FALLBACK_PROVIDER:-deepseek}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen3:8b}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      BACKEND_URL: http://backend:8080
+      ML_SERVICE_URL: http://ml-service:8001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      STT_MODEL: ${STT_MODEL:-base.en}
+      STT_MODEL_DIR: /models
+    volumes:
+      - stt_models:/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Optional local LLM (alternative to the default NVIDIA NIM).
+  # Start with: docker compose --profile llm up -d  (pulls Qwen3-8B on first run)
+  # Use it by setting LLM_PROVIDER=ollama.
+  # GPU: add `deploy.resources.reservations.devices` (nvidia-container-toolkit);
+  # Apple Silicon: uses Metal automatically with the ollama/ollama image.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  ml-service:
+    build: ./ml-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ml-service/models_saved:/app/models_saved
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  ollama_models:
+  stt_models:

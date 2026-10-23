@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+tests/
+models_saved/
+datasets/
+notebooks/
+.idea/
+.git/
